@@ -35,15 +35,35 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Active coordinates
-  const [location, setLocation] = useState({
-    lat: 51.5074,
-    lon: -0.1278,
-    name: 'London, United Kingdom',
-  });
+  // Active location state - starts null for auto GPS detection
+  const [location, setLocation] = useState(null);
 
-  // Load weather when location changes
+  // 1. Auto-detect user's current GPS location on initial mount
   useEffect(() => {
+    if ('geolocation' in navigator) {
+      setBearState('spinning');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLocation({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            name: '', // Will reverse geocode automatically to user's real city name
+          });
+        },
+        () => {
+          // Fallback to London if GPS permission denied or unavailable
+          setLocation({ lat: 51.5074, lon: -0.1278, name: 'London, United Kingdom' });
+        },
+        { timeout: 8000 }
+      );
+    } else {
+      setLocation({ lat: 51.5074, lon: -0.1278, name: 'London, United Kingdom' });
+    }
+  }, []);
+
+  // 2. Load weather data whenever location changes
+  useEffect(() => {
+    if (!location) return;
     let isMounted = true;
     async function loadWeather() {
       try {
@@ -79,7 +99,7 @@ export default function App() {
     localStorage.setItem('weather30_unit', nextUnit);
   };
 
-  // GPS Location Lookup
+  // Manual GPS Location Refresh
   const handleUseLocation = () => {
     if ('geolocation' in navigator) {
       setLoading(true);
@@ -89,12 +109,11 @@ export default function App() {
           setLocation({
             lat: pos.coords.latitude,
             lon: pos.coords.longitude,
-            name: 'Your Location',
+            name: '',
           });
         },
         () => {
-          alert('GPS Location access denied or unavailable. Using London fallback.');
-          setLocation({ lat: 51.5074, lon: -0.1278, name: 'London, United Kingdom' });
+          alert('GPS Location access denied or unavailable.');
         }
       );
     }
@@ -106,9 +125,10 @@ export default function App() {
     setCurrentScreen('dashboard');
   };
 
-  const isCurrentFavorite = favorites.some((f) => f.name === location.name);
+  const isCurrentFavorite = favorites.some((f) => f.name === location?.name);
 
   const handleToggleFavorite = () => {
+    if (!location) return;
     if (isCurrentFavorite) {
       setFavorites(favorites.filter((f) => f.name !== location.name));
     } else {
@@ -211,7 +231,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* Main Layout - Wide Gap Between Columns to Prevent Overlap */}
+      {/* Main Layout - Wide Gap Between Columns */}
       <main className="relative z-20 flex-1 flex flex-col lg:flex-row items-center justify-center min-h-0 overflow-y-auto lg:overflow-hidden pt-16 sm:pt-20 pb-20 lg:pb-4 px-4 sm:px-8 gap-8 lg:gap-12 xl:gap-16">
         {/* Transparent Interactive 3D Climate Globe + Bear Mascot Container */}
         <div className="flex flex-col items-center justify-between w-full max-w-[290px] sm:max-w-[320px] xl:w-[340px] lg:h-[calc(100vh-140px)] lg:max-h-[640px] p-2 bg-transparent rounded-3xl relative overflow-visible transition-all duration-300 my-auto shrink-0">
@@ -222,14 +242,14 @@ export default function App() {
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </div>
 
-          {/* Bear Mascot & 3D Globe Wrapper - Contrained Spacing */}
+          {/* Bear Mascot & 3D Globe Wrapper */}
           <div className="w-full flex-1 flex items-center justify-center relative my-4 lg:my-auto">
             {/* 3D Cobe Globe */}
             <div className="w-[190px] h-[190px] sm:w-[230px] sm:h-[230px] xl:w-[250px] xl:h-[250px] flex items-center justify-center p-1">
               <GlobeWeather
                 className="w-full h-full"
-                targetLat={location.lat}
-                targetLon={location.lon}
+                targetLat={location?.lat}
+                targetLon={location?.lon}
                 onSpinStart={() => setBearState('spinning')}
                 onSpinComplete={() => setBearState('pointing')}
               />
@@ -241,7 +261,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Tagline Box - Strictly Fitted Width */}
+          {/* Tagline Box */}
           <div className="w-full text-center z-10 py-2 px-3 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/25 shadow-lg">
             <p className="text-xs font-medium text-slate-100 tracking-wide leading-snug">
               Search any city & watch the bear spin the globe to your location! 🐾
@@ -253,7 +273,7 @@ export default function App() {
         {loading ? (
           <div className="flex flex-col items-center justify-center glass-panel p-8 rounded-3xl space-y-3 my-auto">
             <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            <p className="text-xs text-slate-300 font-light">Loading live weather data...</p>
+            <p className="text-xs text-slate-300 font-light">Detecting your location & loading live weather...</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center glass-panel p-8 rounded-3xl space-y-3 text-center my-auto">

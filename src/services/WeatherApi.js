@@ -175,23 +175,28 @@ export async function searchCities(query) {
 export async function reverseGeocode(lat, lon) {
   try {
     const res = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${lat},${lon}&count=1`
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
     );
     if (res.ok) {
       const data = await res.json();
-      if (data.results && data.results.length > 0) {
-        return `${data.results[0].name}, ${data.results[0].country || ''}`;
-      }
+      const city = data.city || data.locality || data.principalSubdivision || 'Your Location';
+      const country = data.countryName || '';
+      return country ? `${city}, ${country}` : city;
     }
   } catch (e) {
     console.error('Reverse geocode error:', e);
   }
-  return `Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`;
+  return 'Your Location';
 }
 
 // Fetch Full Weather Data
 export async function fetchFullWeatherData(lat, lon, cityName = '') {
   try {
+    let resolvedCityName = cityName;
+    if (!resolvedCityName || resolvedCityName === 'Your Location') {
+      resolvedCityName = await reverseGeocode(lat, lon);
+    }
+
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,uv_index&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code,wind_speed_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,uv_index_max&timezone=auto`;
 
     const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone`;
@@ -278,7 +283,7 @@ export async function fetchFullWeatherData(lat, lon, cityName = '') {
       : '08:45 PM';
 
     return {
-      cityName: cityName || 'Local Weather',
+      cityName: resolvedCityName,
       lat,
       lon,
       temp: current.temperature_2m,
