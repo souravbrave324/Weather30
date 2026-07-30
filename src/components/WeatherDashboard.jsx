@@ -57,6 +57,28 @@ export default function WeatherDashboard({
     setShowSearchDropdown(false);
   };
 
+  const handleKeyDown = async (e) => {
+    if (e.key === 'Enter' && searchQuery.trim().length > 0) {
+      e.preventDefault();
+      let cityToSelect = null;
+      if (searchResults.length > 0) {
+        cityToSelect = searchResults[0];
+      } else {
+        setIsSearching(true);
+        const results = await searchCities(searchQuery);
+        if (results && results.length > 0) {
+          cityToSelect = results[0];
+        }
+        setIsSearching(false);
+      }
+
+      if (cityToSelect) {
+        handleSelectSearchResult(cityToSelect);
+      }
+    }
+  };
+
+
   const getWeatherIcon = (bgType) => {
     switch (bgType) {
       case 'clear':
@@ -107,10 +129,12 @@ export default function WeatherDashboard({
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
+              onKeyDown={handleKeyDown}
               onFocus={() => searchQuery.length >= 2 && setShowSearchDropdown(true)}
               placeholder="Search city (e.g. Tokyo, London)..."
               className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-white/40 focus:bg-white/15 transition-all shadow-inner"
             />
+
             {isSearching && (
               <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             )}
